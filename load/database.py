@@ -34,11 +34,16 @@ CREATE INDEX IF NOT EXISTS idx_raw_klines_symbol
 CREATE INDEX IF NOT EXISTS idx_raw_klines_time
     ON raw_klines(open_time);
 
-CREATE TABLE IF NOT EXISTS features (
+DROP TABLE IF EXISTS features;
+
+CREATE TABLE features (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL,
     interval TEXT NOT NULL,
     open_time TIMESTAMP NOT NULL,
+    open REAL,
+    high REAL,
+    low REAL,
     close REAL,
     volume REAL,
     sma_20 REAL,
@@ -127,7 +132,8 @@ def upsert_features(engine: Engine, df: pd.DataFrame) -> int:
         df["open_time"] = df["open_time"].astype(str)
     rows = 0
     cols = [
-        "symbol", "interval", "open_time", "close", "volume",
+        "symbol", "interval", "open_time",
+        "open", "high", "low", "close", "volume",
         "sma_20", "sma_50", "ema_12", "ema_26", "rsi_14",
         "macd", "macd_signal", "macd_histogram",
         "bb_upper", "bb_lower", "atr_14", "volume_sma",
