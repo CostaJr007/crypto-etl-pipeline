@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -44,7 +45,9 @@ def run_pipeline(
             for interval in intervals:
                 logger.info("Processing %s %s", symbol, interval)
 
-                raw = fetch_klines(symbol, interval, days_back)
+                end_date = datetime.now(tz=timezone.utc).replace(tzinfo=None)
+                start_date = end_date - timedelta(days=days_back)
+                raw = fetch_klines(symbol, interval, start_date, end_date)
                 if not raw:
                     continue
 
@@ -63,7 +66,11 @@ def run_pipeline(
                 for a in alerts:
                     logger.info("ALERT | %s | %s | %.2f", a["symbol"], a["signal"], a["value"])
 
-        log_pipeline_run(engine, run_id, "finished", **stats)
+        log_pipeline_run(engine, run_id, "finished",
+                         symbols_processed=stats["extracted"],
+                         rows_extracted=stats["extracted"],
+                         rows_transformed=stats["transformed"],
+                         alerts_generated=stats["alerts"])
         logger.info("Pipeline run %d completed: %s", run_id, stats)
         return stats
 

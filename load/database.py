@@ -100,6 +100,10 @@ def init_database(engine: Engine) -> None:
 
 
 def upsert_raw(engine: Engine, df: pd.DataFrame) -> int:
+    df = df.copy()
+    for col in ("open_time", "close_time"):
+        if col in df.columns:
+            df[col] = df[col].astype(str)
     rows = 0
     with engine.begin() as conn:
         for _, row in df.iterrows():
@@ -118,6 +122,9 @@ def upsert_raw(engine: Engine, df: pd.DataFrame) -> int:
 
 
 def upsert_features(engine: Engine, df: pd.DataFrame) -> int:
+    df = df.copy()
+    if "open_time" in df.columns:
+        df["open_time"] = df["open_time"].astype(str)
     rows = 0
     cols = [
         "symbol", "interval", "open_time", "close", "volume",

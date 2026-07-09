@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Generator
 
 import requests
@@ -60,8 +60,8 @@ def fetch_klines(
             all_rows.append({
                 "symbol": symbol,
                 "interval": interval,
-                "open_time": datetime.utcfromtimestamp(candle[0] / 1000),
-                "close_time": datetime.utcfromtimestamp(candle[6] / 1000),
+                "open_time": datetime.fromtimestamp(candle[0] / 1000, tz=timezone.utc).replace(tzinfo=None),
+                "close_time": datetime.fromtimestamp(candle[6] / 1000, tz=timezone.utc).replace(tzinfo=None),
                 "open": float(candle[1]),
                 "high": float(candle[2]),
                 "low": float(candle[3]),
@@ -84,7 +84,7 @@ def batch_extract(
     intervals: list[str],
     days_back: int,
 ) -> Generator[tuple[str, str, list[dict]], None, None]:
-    end_date = datetime.utcnow()
+    end_date = datetime.now(tz=timezone.utc).replace(tzinfo=None)
     start_date = end_date - timedelta(days=days_back)
 
     for symbol in symbols:
