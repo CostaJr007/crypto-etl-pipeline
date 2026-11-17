@@ -78,5 +78,30 @@ class TestExtract(unittest.TestCase):
             self.assertIn("close", rows[0])
 
 
+class TestDatabaseInit(unittest.TestCase):
+
+    def test_init_keeps_features_and_migrates_old_schema(self):
+        from sqlalchemy import create_engine, text
+        from load.database import init_database, upsert_features
+
+        engine = create_engine("sqlite://")
+        with engine.begin() as conn:
+            conn.execute(text(
+                "CREATE TABLE features (id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT NOT NULL, "
+                "interval TEXT NOT NULL, open_time TIMESTAMP NOT NULL, close REAL, "
+                "UNIQUE(symbol, interval, open_time))"))
+        init_database(engine)
+        row = pd.DataFrame([{"symbol": "BTCUSDT", "interval": "1h", "open_time": "2024-01-01 00:00:00",
+                             "open": 1.0, "high": 2.0, "low": 0.5, "close": 1.5}])
+        upsert_features(engine, row)
+
+        init_database(engine)  # second run must not wipe computed features
+        with engine.connect() as conn:
+            count = conn.execute(text("SELECT COUNT(*) FROM features")).scalar()
+            high = conn.execute(text("SELECT high FROM features")).scalar()
+        self.assertEqual(count, 1)
+        self.assertEqual(high, 2.0)
+
+
 if __name__ == "__main__":
     unittest.main()
