@@ -34,9 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_raw_klines_symbol
 CREATE INDEX IF NOT EXISTS idx_raw_klines_time
     ON raw_klines(open_time);
 
-DROP TABLE IF EXISTS features;
-
-CREATE TABLE features (
+CREATE TABLE IF NOT EXISTS features (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL,
     interval TEXT NOT NULL,
@@ -94,13 +92,28 @@ def get_engine() -> Engine:
     return create_engine(DATABASE_URL, echo=False)
 
 
+# Columns added to `features` after the first schema version. Older databases get
+# them through ALTER TABLE instead of dropping the table and losing computed history.
+FEATURES_ADDED_COLUMNS = {"open": "REAL", "high": "REAL", "low": "REAL"}
+
+
+def _migrate_features(conn) -> None:
+    existing = {row[1] for row in conn.execute(text("PRAGMA table_info(features)"))}
+    for column, sql_type in FEATURES_ADDED_COLUMNS.items():
+        if column not in existing:
+            logger.info("Adding missing column features.%s", column)
+            conn.execute(text(f"ALTER TABLE features ADD COLUMN {column} {sql_type}"))
+
+
 def init_database(engine: Engine) -> None:
+    """Create missing tables and migrate old ones; safe to run on every pipeline start."""
     logger.info("Initializing database schema")
     with engine.begin() as conn:
         for statement in SCHEMA_SQL.split(";"):
             stmt = statement.strip()
             if stmt:
                 conn.execute(text(stmt))
+        _migrate_features(conn)
     logger.info("Database schema ready")
 
 
